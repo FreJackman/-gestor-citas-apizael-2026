@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestor Citas Apizael 2026</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root { --primary: #0066CC; --secondary: #0099D8; --danger: #C62828; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); color: #333; min-height: 100vh; }
+    
+    .login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+    .login-screen.hidden { display: none; }
+    .login-container { background: white; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); padding: 50px; width: 100%; max-width: 450px; }
+    .login-logo h1 { font-size: 32px; color: var(--primary); text-align: center; margin-bottom: 10px; }
+    .login-logo p { color: #666; font-size: 14px; text-align: center; margin-bottom: 30px; }
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; margin-bottom: 8px; color: #333; font-weight: 600; font-size: 14px; }
+    .form-group input { width: 100%; padding: 12px 15px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 14px; }
+    .form-group input:focus { outline: none; border-color: var(--primary); }
+    .login-btn { width: 100%; padding: 12px; background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%); color: white; border: none; border-radius: 10px; font-weight: 700; font-size: 16px; cursor: pointer; }
+    .login-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0, 102, 204, 0.3); }
+    .error-msg { color: var(--danger); font-size: 13px; margin-top: 10px; text-align: center; display: none; }
+    .error-msg.show { display: block; }
+    
+    .app-container { display: none; min-height: 100vh; padding: 20px; }
+    .app-container.visible { display: block; }
+    .header { background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%); color: white; padding: 25px 30px; border-radius: 15px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
+    .header h1 { font-size: 24px; font-weight: 700; }
+    .logout-btn { background: rgba(255,255,255,0.2); color: white; border: 2px solid white; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: 600; }
+    
+    .tabs { display: flex; gap: 10px; margin-bottom: 30px; background: white; padding: 15px; border-radius: 12px; flex-wrap: wrap; }
+    .tab-btn { padding: 12px 20px; background: none; border: 2px solid transparent; border-radius: 8px; cursor: pointer; font-weight: 600; color: #666; }
+    .tab-btn.active { background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%); color: white; }
+    
+    .panel { display: none; }
+    .panel.active { display: block; }
+    
+    .card { background: white; border-radius: 12px; padding: 25px; margin-bottom: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+    .card h3 { color: var(--primary); font-size: 18px; margin-bottom: 20px; }
+    
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; margin-bottom: 15px; }
+    .form-group-inline { display: flex; flex-direction: column; }
+    .form-group-inline label { margin-bottom: 8px; color: #333; font-weight: 600; font-size: 13px; }
+    .form-group-inline input, .form-group-inline select, .form-group-inline textarea { padding: 10px 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; font-family: inherit; }
+    
+    .btn { padding: 12px 24px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 14px; }
+    .btn-primary { background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%); color: white; }
+    .btn-export { background: #4CAF50; color: white; margin-right: 10px; }
+    .btn-view { background: var(--primary); color: white; padding: 6px 10px; font-size: 12px; margin-right: 3px; }
+    .btn-danger { background: var(--danger); color: white; padding: 6px 10px; font-size: 12px; }
+    
+    .table-responsive { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    table th { background: #f5f5f5; padding: 12px; text-align: left; font-weight: 700; color: #333; border-bottom: 2px solid #e0e0e0; font-size: 13px; }
+    table td { padding: 12px; border-bottom: 1px solid #e0e0e0; font-size: 14px; }
+    
+    .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .status-pending { background: #FFF3E0; color: #F57C00; }
+    .status-inProgress { background: #E3F2FD; color: #0066CC; }
+    .status-failed { background: #ffebee; color: #C62828; }
+    .status-completed { background: #E8F5E9; color: #2E7D32; }
+    
+    .toast { background: white; padding: 16px 20px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-left: 4px solid #2E7D32; position: fixed; top: 20px; right: 20px; z-index: 11000; max-width: 400px; }
+    .toast.error { border-left-color: var(--danger); }
+    
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center; }
+    .modal.active { display: flex; }
+    .modal-content { background: white; border-radius: 15px; padding: 30px; max-width: 500px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); max-height: 90vh; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .modal-header h2 { color: var(--primary); font-size: 22px; }
+    .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #666; }
+    .detail-row { display: flex; justify-content: space-between; padding: 12px; background: #f5f5f5; border-radius: 8px; margin-bottom: 10px; }
+    .detail-label { font-weight: 600; color: var(--primary); }
+    .detail-value { text-align: right; color: #333; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+    .modal-actions button { flex: 1; padding: 10px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+    
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
+    .stat-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-top: 4px solid var(--primary); }
+    .stat-card h4 { color: var(--primary); font-size: 16px; margin-bottom: 15px; font-weight: 700; }
+    .stat-numbers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .stat-number { background: #f5f5f5; padding: 10px; border-radius: 8px; text-align: center; }
+    .stat-number-label { font-size: 12px; color: #666; font-weight: 600; margin-bottom: 5px; }
+    .stat-number-value { font-size: 24px; font-weight: 700; color: var(--primary); }
+    
+    .cal-btn { padding: 8px 12px; background: white; border: 2px solid #e0e0e0; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; margin-right: 5px; margin-bottom: 10px; }
+    .cal-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+    .calendar-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 15px; }
+    .day-col { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .day-header { background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%); color: white; padding: 12px; text-align: center; font-weight: 700; font-size: 13px; }
+    .day-slots { max-height: 500px; overflow-y: auto; }
+    .slot { padding: 10px; border-bottom: 1px solid #e0e0e0; font-size: 11px; }
+    .slot.available { background: #f0fff4; color: #22863a; }
+    .slot.occupied { background: #fff5f5; color: #cb2431; }
+    .slot.closed { background: #f5f5f5; color: #999; }
+  </style>
+</head>
+<body>
+
+<div class="login-screen" id="loginScreen">
+  <div class="login-container">
+    <div class="login-logo">
+      <h1>💙 Apizael 2026</h1>
+      <p>Gestor de Citas - Team Colombia</p>
+    </div>
+    <form id="loginForm">
+      <div class="form-group">
+        <label>📧 Email</label>
+        <input type="email" id="email" required>
+      </div>
+      <div class="form-group">
+        <label>🔐 Contraseña</label>
+        <input type="password" id="password" required>
+      </div>
+      <button type="submit" class="login-btn">✓ Entrar</button>
+      <div class="error-msg" id="error"></div>
+    </form>
+  </div>
+</div>
+
+<div class="app-container" id="appContainer">
+  <div class="header">
+    <div>
+      <h1>💙 Gestor de Citas: Apizael 2026</h1>
+      <p style="font-size: 13px; opacity: 0.9;">Florida Blue | Team Colombia</p>
+    </div>
+    <div style="text-align: right;">
+      <p style="font-size: 13px; margin-bottom: 8px;">👤 <strong id="userName">Usuario</strong></p>
+      <button class="logout-btn" onclick="logout()">🚪 Cerrar</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="coord">📋 Coordinación</button>
+    <button class="tab-btn" data-tab="cal">📅 Calendario</button>
+    <button class="tab-btn" data-tab="report">📊 Análisis</button>
+  </div>
+
+  <!-- COORDINACIÓN -->
+  <div id="coord" class="panel active">
+    <div class="card">
+      <h3>➕ Nueva Solicitud</h3>
+      <form id="caseForm">
+        <div class="form-grid">
+          <div class="form-group-inline">
+            <label>Tipo</label>
+            <select id="type" required>
+              <option value="">Selecciona...</option>
+              <option value="Médicos">📋 Médicos</option>
+              <option value="Centros">🏥 Centros</option>
+              <option value="Beneficios">💰 Beneficios</option>
+              <option value="Cuenta">👤 Cuenta</option>
+              <option value="Recompensas">🎁 Recompensas</option>
+              <option value="Otros">📌 Otros</option>
+            </select>
+          </div>
+          <div class="form-group-inline"><label>Miembro</label><input type="text" id="member" required></div>
+          <div class="form-group-inline"><label>ID</label><input type="text" id="memberId" required></div>
+          <div class="form-group-inline"><label>ZIP</label><input type="text" id="zip" required></div>
+          <div class="form-group-inline"><label>☎️ Teléfono</label><input type="tel" id="phone" required></div>
+          <div class="form-group-inline">
+            <label>Responsable</label>
+            <select id="assignee" required>
+              <option value="">Selecciona...</option>
+              <option value="fremarjackman2020@gmail.com">Fre</option>
+              <option value="seguroscolombiafloridablue@gmail.com">María Paula</option>
+              <option value="alliedmarketingwestcoast@gmail.com">Team Tampa</option>
+            </select>
+          </div>
+          <div class="form-group-inline"><label>Fecha</label><input type="date" id="date" required></div>
+          <div class="form-group-inline"><label>Hora</label><input type="time" id="time" required></div>
+        </div>
+        <div class="form-group-inline" style="margin-bottom: 15px;">
+          <label>📝 Notas</label>
+          <textarea id="notes" style="min-height: 80px; resize: vertical;"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">✅ Crear</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h3>📊 Solicitudes</h3>
+      <div style="margin-bottom: 15px;">
+        <button onclick="downloadExcel()" class="btn btn-export">📥 Excel</button>
+        <button onclick="downloadCSV()" class="btn btn-export">📥 CSV</button>
+        <button onclick="clearAllData()" class="btn" style="background: #FF9800; color: white;">🗑️ Limpiar Todo</button>
+      </div>
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>Miembro</th>
+              <th>Teléfono</th>
+              <th>Tipo</th>
+              <th>Fecha</th>
+              <th>Hora</th>
+              <th>Responsable</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="casesTable">
+            <tr><td colspan="8" style="text-align: center; padding: 40px;">⏳ Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- CALENDARIO -->
+  <div id="cal" class="panel">
+    <div class="card">
+      <h3>📅 Calendario - Bloques 30 Minutos</h3>
+      <div style="margin-bottom: 15px;">
+        <strong>Semana:</strong>
+        <button class="cal-btn week-btn active" data-week="0">Esta</button>
+        <button class="cal-btn week-btn" data-week="1">+1</button>
+        <button class="cal-btn week-btn" data-week="2">+2</button>
+        <button class="cal-btn week-btn" data-week="3">+3</button>
+      </div>
+      <div style="margin-bottom: 15px;">
+        <strong>Responsable:</strong>
+        <button class="cal-btn assign-btn active" data-assign="">Todos</button>
+        <button class="cal-btn assign-btn" data-assign="fremarjackman2020@gmail.com">Fre</button>
+        <button class="cal-btn assign-btn" data-assign="seguroscolombiafloridablue@gmail.com">María Paula</button>
+        <button class="cal-btn assign-btn" data-assign="alliedmarketingwestcoast@gmail.com">Team Tampa</button>
+      </div>
+      <div style="padding: 10px; background: #f0f0f0; border-radius: 8px; font-size: 11px; margin-bottom: 15px;">
+        🟢 Verde=Libre | 🔴 Rojo=Ocupado | ⚪ Gris=Cerrado
+      </div>
+      <div class="calendar-grid" id="calGrid"></div>
+    </div>
+  </div>
+
+  <!-- ANÁLISIS -->
+  <div id="report" class="panel">
+    <div class="card">
+      <h3>📊 Estadísticas por Responsable</h3>
+      <div class="stats-grid" id="statsGrid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal" id="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>📋 Detalles</h2>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div id="modalBody"></div>
+    <div class="modal-actions" id="modalActions"></div>
+  </div>
+</div>
+
+<script>
+const USERS = {
+  'fremarjackman2020@gmail.com': 'Fre',
+  'seguroscolombiafloridablue@gmail.com': 'María Paula',
+  'alliedmarketingwestcoast@gmail.com': 'Team Tampa'
+};
+const PASSWORD = 'Apizael2026!Secure';
+const BASE_DATE = new Date(2026, 5, 8);
+
+let currentUser = null;
+let cases = [];
+let currentWeek = 0;
+let currentAssign = '';
+// CARGAR DATOS AL INICIAR
+function loadData() {
+  const saved = localStorage.getItem('cases');
+  if (saved) {
+    cases = JSON.parse(saved);
+  }
+  console.log('Datos cargados:', cases);
+}
+
+// RENDERIZAR CALENDARIO
+function renderCal() {
+  const start = new Date(BASE_DATE);
+  start.setDate(BASE_DATE.getDate() + currentWeek * 7);
+  
+  let html = '';
+  for (let d = 0; d < 7; d++) {
+    const date = new Date(start);
+    date.setDate(start.getDate() + d);
+    const dateStr = date.toISOString().split('T')[0];
+    const day = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'][date.getDay()];
+    const num = date.getDate();
+    const slots = makeSlots(dateStr, date.getDay());
+    
+    html += `
+      <div class="day-col">
+        <div class="day-header">${day}<br>${num}</div>
+        <div class="day-slots">${slots}</div>
+      </div>
+    `;
+  }
+  document.getElementById('calGrid').innerHTML = html;
+}
+
+function makeSlots(dateStr, dayOfWeek) {
+  let html = '';
+  const isClosed = dayOfWeek === 0;
+  const maxHour = dayOfWeek === 6 ? 15 : 17;
+  
+  for (let h = 9; h <= maxHour; h++) {
+    for (let m of [0, 30]) {
+      if (h === maxHour && m > 0) break;
+      const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      const occupied = cases.some(c => (currentAssign ? c.assignee === currentAssign : true) && c.date === dateStr && c.time === timeStr);
+      const st = isClosed ? 'closed' : occupied ? 'occupied' : 'available';
+      html += `<div class="slot ${st}"><strong>${timeStr}</strong></div>`;
+    }
+  }
+  return html;
+}
+
+// GUARDAR DATOS
+function saveData() {
+  localStorage.setItem('cases', JSON.stringify(cases));
+}
+
+// LOGIN
+document.getElementById('loginForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const email = document.getElementById('email').value.trim();
+  const pwd = document.getElementById('password').value.trim();
+  const err = document.getElementById('error');
+  
+  if (!USERS[email]) {
+    err.textContent = '❌ Email no autorizado';
+    err.classList.add('show');
+    setTimeout(() => err.classList.remove('show'), 3000);
+    return;
+  }
+  
+  if (pwd !== PASSWORD) {
+    err.textContent = '❌ Contraseña incorrecta';
+    err.classList.add('show');
+    setTimeout(() => err.classList.remove('show'), 3000);
+    return;
+  }
+  
+  currentUser = email;
+  localStorage.setItem('currentUser', currentUser);
+  
+  loadData();
+  
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('appContainer').classList.add('visible');
+  document.getElementById('userName').textContent = USERS[email];
+  
+  renderCases();
+  renderCal();
+  updateStats();
+  showToast(`✅ Bienvenido, ${USERS[email]}!`);
+});
+
+function logout() {
+  if (confirm('¿Cerrar sesión?')) {
+    localStorage.clear();
+    location.reload();
+  }
+}
+
+// CREAR SOLICITUD
+document.getElementById('caseForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  
+  const type = document.getElementById('type').value;
+  const member = document.getElementById('member').value.trim();
+  const memberId = document.getElementById('memberId').value.trim();
+  const zip = document.getElementById('zip').value.trim();
+  const phone = document.getElementById('phone').value.trim();
+  const assignee = document.getElementById('assignee').value;
+  const date = document.getElementById('date').value;
+  const time = document.getElementById('time').value;
+  const notes = document.getElementById('notes').value.trim();
+  
+  if (cases.some(c => c.assignee === assignee && c.date === date && c.time === time)) {
+    showToast('⚠️ Ya existe cita en esa fecha/hora', 'error');
+    return;
+  }
+  
+  cases.push({
+    id: Date.now().toString(),
+    type, member, memberId, zip, phone, date, time, assignee, notes,
+    status: 'pending'
+  });
+  
+  saveData();
+  e.target.reset();
+  renderCases();
+  renderCal();
+  updateStats();
+  showToast('✅ Solicitud creada');
+});
+
+// RENDERIZAR TABLA
+function renderCases() {
+  const tbody = document.getElementById('casesTable');
+  
+  if (!cases || cases.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px;">📭 Sin solicitudes</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = cases.map(c => `
+    <tr>
+      <td>${c.member}</td>
+      <td>${c.phone}</td>
+      <td>${c.type}</td>
+      <td>${c.date}</td>
+      <td>${c.time}</td>
+      <td>${USERS[c.assignee]}</td>
+      <td><span class="status-badge status-${c.status}">${getStatusLabel(c.status)}</span></td>
+      <td>
+        <button type="button" onclick="openDetail('${c.id}')" class="btn btn-view" style="padding: 6px 10px; font-size: 12px; margin-right: 5px;">👁️ Ver</button>
+        <button type="button" onclick="removeSolicitud('${c.id}')" class="btn btn-danger" style="padding: 6px 10px; font-size: 12px;">🗑️</button>
+      </td>
+    </tr>
+  `).join('');
+  
+  console.log('Tabla renderizada con', cases.length, 'solicitudes');
+}
+
+function getStatusLabel(status) {
+  const labels = {
+    'pending': '⏳ PENDIENTE',
+    'inProgress': '🔄 EN CURSO',
+    'failed': '❌ NO LOGRADO',
+    'completed': '✅ COMPLETADO'
+  };
+  return labels[status] || status;
+}
+
+// VER DETALLES
+function openDetail(caseId) {
+  console.log('Abriendo detalles de:', caseId);
+  const c = cases.find(x => x.id === caseId);
+  
+  if (!c) {
+    console.error('Solicitud no encontrada:', caseId);
+    showToast('❌ Solicitud no encontrada', 'error');
+    return;
+  }
+  
+  console.log('Solicitud encontrada:', c);
+  
+  let html = `
+    <div class="detail-row"><span class="detail-label">👤 Nombre:</span><span class="detail-value"><strong>${c.member}</strong></span></div>
+    <div class="detail-row"><span class="detail-label">☎️ Teléfono:</span><span class="detail-value"><a href="tel:${c.phone}" style="color: var(--primary); text-decoration: none; font-weight: 600;">${c.phone}</a></span></div>
+    <div class="detail-row"><span class="detail-label">🎫 ID:</span><span class="detail-value">${c.memberId}</span></div>
+    <div class="detail-row"><span class="detail-label">📋 Tipo:</span><span class="detail-value">${c.type}</span></div>
+    <div class="detail-row"><span class="detail-label">📍 ZIP:</span><span class="detail-value">${c.zip}</span></div>
+    <div class="detail-row"><span class="detail-label">📅 Fecha:</span><span class="detail-value">${c.date}</span></div>
+    <div class="detail-row"><span class="detail-label">⏰ Hora:</span><span class="detail-value">${c.time}</span></div>
+    <div class="detail-row"><span class="detail-label">👨‍💼 Responsable:</span><span class="detail-value">${USERS[c.assignee]}</span></div>
+    <div class="detail-row"><span class="detail-label">📊 Estado:</span><span class="detail-value">
+      <select onchange="updateStatus('${c.id}', this.value)" style="padding: 6px 10px; border: 2px solid #e0e0e0; border-radius: 5px; font-size: 13px; font-weight: 600; cursor: pointer;">
+        <option value="pending" ${c.status === 'pending' ? 'selected' : ''}>⏳ PENDIENTE</option>
+        <option value="inProgress" ${c.status === 'inProgress' ? 'selected' : ''}>🔄 EN CURSO</option>
+        <option value="failed" ${c.status === 'failed' ? 'selected' : ''}>❌ NO LOGRADO</option>
+        <option value="completed" ${c.status === 'completed' ? 'selected' : ''}>✅ COMPLETADO</option>
+      </select>
+    </span></div>
+  `;
+  
+  if (c.notes) {
+    html += `<div style="background: #f9f9f9; padding: 12px; border-radius: 8px; margin-top: 10px; border-left: 4px solid #f57c00;"><strong>📝 Notas:</strong><p style="margin-top: 8px; white-space: pre-wrap; color: #333;">${c.notes}</p></div>`;
+  }
+  
+  document.getElementById('modalBody').innerHTML = html;
+  document.getElementById('modalActions').innerHTML = `
+    <button type="button" class="btn btn-primary" style="flex: 1;" onclick="closeModal()">Cerrar</button>
+    <button type="button" class="btn btn-danger" style="flex: 1;" onclick="removeSolicitud('${c.id}'); closeModal();">🗑️ Eliminar</button>
+  `;
+  
+  console.log('Modal abierto');
+  document.getElementById('modal').classList.add('active');
+}
+
+function closeModal() {
+  console.log('Cerrando modal');
+  document.getElementById('modal').classList.remove('active');
+}
+
+function updateStatus(id, newStatus) {
+  console.log('Actualizando status:', id, newStatus);
+  const c = cases.find(x => x.id === id);
+  if (c) {
+    c.status = newStatus;
+    saveData();
+    renderCases();
+    renderCal();
+    updateStats();
+    showToast(`✅ Estado actualizado a ${getStatusLabel(newStatus)}`);
+  }
+}
+
+// ELIMINAR
+function removeSolicitud(id) {
+  console.log('Eliminando solicitud:', id);
+  if (!confirm('¿Eliminar esta solicitud?')) return;
+  
+  const beforeCount = cases.length;
+  cases = cases.filter(c => c.id !== id);
+  const afterCount = cases.length;
+  
+  console.log(`Antes: ${beforeCount} solicitudes, Después: ${afterCount} solicitudes`);
+  
+  saveData();
+  
+  document.getElementById('modal').classList.remove('active');
+  renderCases();
+  renderCal();
+  updateStats();
+  showToast('✅ Solicitud eliminada');
+}
+
+// ESTADÍSTICAS
+function updateStats() {
+  const grid = document.getElementById('statsGrid');
+  
+  const agents = {
+    'seguroscolombiafloridablue@gmail.com': 'María Paula',
+    'alliedmarketingwestcoast@gmail.com': 'Team Tampa'
+  };
+  
+  let html = '';
+  Object.entries(agents).forEach(([email, name]) => {
+    const userCases = cases.filter(c => c.assignee === email);
+    const stats = {
+      total: userCases.length,
+      pending: userCases.filter(c => c.status === 'pending').length,
+      inProgress: userCases.filter(c => c.status === 'inProgress').length,
+      failed: userCases.filter(c => c.status === 'failed').length,
+      completed: userCases.filter(c => c.status === 'completed').length
+    };
+    
+    const percent = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+    
+    html += `
+      <div class="stat-card">
+        <h4>👤 ${name}</h4>
+        <div class="stat-numbers">
+          <div class="stat-number">
+            <div class="stat-number-label">Total</div>
+            <div class="stat-number-value" style="color: var(--primary);">${stats.total}</div>
+          </div>
+          <div class="stat-number">
+            <div class="stat-number-label">⏳ Pendiente</div>
+            <div class="stat-number-value" style="color: #F57C00;">${stats.pending}</div>
+          </div>
+          <div class="stat-number">
+            <div class="stat-number-label">🔄 En Curso</div>
+            <div class="stat-number-value" style="color: #0066CC;">${stats.inProgress}</div>
+          </div>
+          <div class="stat-number">
+            <div class="stat-number-label">❌ No Logrado</div>
+            <div class="stat-number-value" style="color: #C62828;">${stats.failed}</div>
+          </div>
+          <div class="stat-number">
+            <div class="stat-number-label">✅ Completado</div>
+            <div class="stat-number-value" style="color: #2E7D32;">${stats.completed}</div>
+          </div>
+          <div class="stat-number" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <div class="stat-number-label" style="color: white;">📈 % Completadas</div>
+            <div class="stat-number-value" style="color: white;">${percent}%</div>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+  
+  grid.innerHTML = html;
+}
+
+// DESCARGAR
+function downloadExcel() {
+  if (!cases.length) { showToast('⚠️ Sin datos', 'error'); return; }
+  const data = cases.map(c => ({
+    'Miembro': c.member,
+    'Teléfono': c.phone,
+    'ID': c.memberId,
+    'Tipo': c.type,
+    'ZIP': c.zip,
+    'Fecha': c.date,
+    'Hora': c.time,
+    'Responsable': USERS[c.assignee],
+    'Estado': getStatusLabel(c.status),
+    'Notas': c.notes || '-'
+  }));
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Solicitudes');
+  XLSX.writeFile(wb, `Gestor-${new Date().toISOString().split('T')[0]}.xlsx`);
+  showToast('✅ Excel descargado');
+}
+
+function downloadCSV() {
+  if (!cases.length) { showToast('⚠️ Sin datos', 'error'); return; }
+  let csv = 'Miembro,Teléfono,ID,Tipo,ZIP,Fecha,Hora,Responsable,Estado,Notas\n';
+  cases.forEach(c => {
+    const notas = (c.notes || '-').replace(/"/g, '""').replace(/\n/g, ' ');
+    csv += `"${c.member}","${c.phone}","${c.memberId}","${c.type}","${c.zip}","${c.date}","${c.time}","${USERS[c.assignee]}","${getStatusLabel(c.status)}","${notas}"\n`;
+  });
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Gestor-${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  showToast('✅ CSV descargado');
+}
+
+// NOTIFICACIONES
+function showToast(msg, type = 'success') {
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+// LIMPIAR TODOS LOS DATOS
+function clearAllData() {
+  if (!confirm('⚠️ ¿Esto eliminará TODAS las solicitudes! ¿Estás seguro?')) return;
+  if (!confirm('⚠️ ¡ÚLTIMO AVISO! Se borrarán TODOS los datos. ¿Continuar?')) return;
+  
+  cases = [];
+  saveData();
+  renderCases();
+  renderCal();
+  updateStats();
+  showToast('✅ Todos los datos han sido eliminados. App limpia.');
+}
+
+// TABS
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    this.classList.add('active');
+    document.getElementById(this.dataset.tab).classList.add('active');
+    if (this.dataset.tab === 'cal') renderCal();
+  });
+});
+
+// CALENDARIO BOTONES
+document.addEventListener('click', function(e) {
+  if (e.target.classList.contains('week-btn')) {
+    document.querySelectorAll('.week-btn').forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+    currentWeek = parseInt(e.target.dataset.week);
+    renderCal();
+  }
+  if (e.target.classList.contains('assign-btn')) {
+    document.querySelectorAll('.assign-btn').forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+    currentAssign = e.target.dataset.assign;
+    renderCal();
+  }
+});
+
+// MODAL
+document.getElementById('modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// RESTAURAR SESIÓN
+window.addEventListener('load', () => {
+  const savedUser = localStorage.getItem('currentUser');
+  if (savedUser && USERS[savedUser]) {
+    currentUser = savedUser;
+    loadData();
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('appContainer').classList.add('visible');
+    document.getElementById('userName').textContent = USERS[currentUser];
+    renderCases();
+    renderCal();
+    updateStats();
+  }
+});
+</script>
+
+</body>
+</html>
